@@ -1,0 +1,10 @@
+## Geospatial query
+
+const bookings = await Booking.find({
+    location: {
+        $near: {
+            $geometry: { type: "Point", coordinates: [-73.935242, 40.730610] },
+            $maxDistance: 10000 // 10 km in meters
+        }
+    }
+});

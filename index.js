@@ -4,6 +4,7 @@ const mongoose = require("mongoose")
 const creater1 = require("./routes/create/createBooking")
 const creater2 = require("./routes/create/createVan")
 const bookroute = require("./routes/routing/book")
+const createMonthSchedule = require("./utils/database/createSchedules")
 require("dotenv").config()
 
 const app = express()
@@ -21,8 +22,13 @@ app.get("/", (req,res)=> {
     res.send("Routing Software ©️")
 })
 mongoose.connect(process.env.MONGO_URI)
-.then(()=> {
+.then(async()=> {
     app.listen(port, ()=> console.log(`http://localhost:${port}`))
+      // Get current year and month
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1; // getMonth() returns 0-based index
+    await createMonthSchedule(year,month)
 })
 .catch((e)=> console.error("Error connecting to database: ", e))
 

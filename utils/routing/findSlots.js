@@ -19,37 +19,7 @@ async function getAvailableSlots(longitude, latitude) {
 
     // Step 2: If no bookings exist, find schedules with <= 3 bookings
     if (bookings.length === 0) {
-      const schedules = await Schedule.aggregate([
-        {
-          $lookup: {
-            from: "bookings",
-            localField: "bookings",
-            foreignField: "_id",
-            as: "bookingsData",
-          },
-        },
-        {
-          $addFields: {
-            lastBooking: { $arrayElemAt: ["$bookingsData", -1] }, // Get last booking
-          },
-        },
-        {
-          $match: {
-            $or: [
-              { bookingsData: { $size: 0 } }, // Include empty schedules
-              {
-                "lastBooking.location": {
-                  $geoWithin: {
-                    $centerSphere: [[Number(longitude), Number(latitude)], 30 / 6378.1], // 30 km radius
-                  },
-                },
-              },
-            ],
-          },
-        },
-      ]);
-    
-      return { available: schedules, possible: [] };
+     return {available: [], possible: []}
     }
 
     // Step 3: Fetch schedules in one query

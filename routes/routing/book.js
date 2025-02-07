@@ -1,5 +1,6 @@
 const express = require("express")
-const findSlots = require("../../utils/routing/findSlots")
+const findSlots = require("../../utils/routing/findSlots");
+const getUpcomingSchedules = require("../../utils/routing/findAvailableSchedules");
 
 const router = express.Router()
 
@@ -10,7 +11,17 @@ router.get("/book", async (req, res)=> {
         
         // If no available slots are found, return early with a 404 response
         if (available.length === 0) {
-            return res.status(404).send({ Message: "No available slots - location is too far", Success: false });
+            const emptySchdeules = await getUpcomingSchedules()
+
+            if(emptySchdeules){
+                res.send({
+                    Message: "We've found some possible booking times",
+                    Available: emptySchdeules,
+                    Success: true,
+                })
+            } else{
+                res.status(404).send({Message: "No available times, please try again another day", Success: false})
+            }
         }
 
         // If there are available or possible slots, send a success response

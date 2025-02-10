@@ -22,7 +22,7 @@ async function getUpcomingSchedules() {
         const bookingOptions = [];
 
         for(let schedule of availableSchedules){
-            const availTimes = findAvailableTimes(schedule);
+            const availTimes = await findAvailableTimes(schedule);
             bookingOptions.push({...schedule.toObject(), availTimes})
         }
 

@@ -1,6 +1,7 @@
 const Van = require("../../models/VanSchema");
 const Booking = require("../../models/BookingSchema");
 const Schedule = require("../../models/ScheduleSchema");
+const findAvailableTimes = require("./calculateAvailableBookingTime");
 
 async function getAvailableSlots(longitude, latitude) {
   try {
@@ -17,12 +18,12 @@ async function getAvailableSlots(longitude, latitude) {
       date: { $gte: today },
     }).populate("van");
 
-    // Step 2: If no bookings exist, find schedules with <= 3 bookings
+    // Step 2: If no bookings exist, return empty arrays
     if (bookings.length === 0) {
-     return {available: [], possible: []}
+      return { available: [], possible: [] };
     }
 
-    // Step 3: Fetch schedules in one query
+    // Step 3: Fetch schedules for the same vans and dates
     const bookingDates = bookings.map(b => b.date);
     const vanIds = bookings.map(b => b.van._id);
     
@@ -33,31 +34,24 @@ async function getAvailableSlots(longitude, latitude) {
 
     let available = [];
     let possible = [];
-    
-    // Step 4: Categorize based on booking count and calculate recommended time
-    schedules.forEach(schedule => {
-      const lastBooking = schedule.bookings[schedule.bookings.length - 1];
 
-      // If there is a last booking, calculate the recommended time
-      let recommendedTime = null;
-      if (lastBooking && lastBooking.expectedCompletionTime) {
-        const hours = Number(lastBooking.expectedCompletionTime.split(":")[0]);
-         recommendedTime = `${(hours+1)}:00:00`; // Extract time in HH:MM format
-      }
+    // Step 4: Process schedules and find available time slots
+    for (const schedule of schedules) {
+      const availTimes = await findAvailableTimes(schedule);
 
-      // Create an object to hold the schedule with the recommended time
-      const scheduleWithRecommendedTime = {
+      // Create an object with available time slots
+      const scheduleWithTimes = {
         ...schedule.toObject(),
-        recommendedTime,
+        availTimes,
       };
 
       // Categorize schedules based on the number of bookings
       if (schedule.bookings.length < 4) {
-        available.push(scheduleWithRecommendedTime);
+        available.push(scheduleWithTimes);
       } else if (schedule.bookings.length === 4) {
-        possible.push(scheduleWithRecommendedTime);
+        possible.push(scheduleWithTimes);
       }
-    });
+    }
 
     return { available, possible };
   } catch (e) {

@@ -1,5 +1,6 @@
 
 const Schedule = require("../../models/ScheduleSchema");
+const findAvailableTimes = require("./calculateAvailableBookingTime");
 
 async function getUpcomingSchedules() {
     try {
@@ -18,7 +19,14 @@ async function getUpcomingSchedules() {
         // Filter out schedules that have bookings
         const availableSchedules = schedules.filter(schedule => !schedule.bookings || schedule.bookings.length === 0);
 
-        return availableSchedules;
+        const bookingOptions = [];
+
+        for(let schedule of availableSchedules){
+            const availTimes = findAvailableTimes(schedule);
+            bookingOptions.push({...schedule.toObject(), availTimes})
+        }
+
+        return bookingOptions;
 
     } catch (error) {
         console.error("Error fetching available schedules:", error);

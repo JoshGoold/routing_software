@@ -21,10 +21,10 @@ const BookingSchema = new mongoose.Schema({
         city: { type: String, required: true },
         country: { type: String, required: true }
     },
-    travel: {
-        time: {type: String, required: true},
-        distance: {type: String, required: true}
-    },
+    // travel: {
+    //     time: {type: String, required: true},
+    //     distance: {type: String, required: true}
+    // },
     client: { type: mongoose.SchemaTypes.ObjectId, ref: "Client", required: true },
     date: { type: Date, required: true }, 
     time: { type: String, required: true }, // Example: "14:30" (2:30 PM)

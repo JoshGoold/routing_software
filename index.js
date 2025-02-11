@@ -3,6 +3,7 @@ const cors = require("cors")
 const mongoose = require("mongoose")
 const creater1 = require("./routes/create/createBooking")
 const creater2 = require("./routes/create/createVan")
+const api = require("./api/index")
 const bookroute = require("./routes/routing/book")
 const get1 = require("./routes/get/getSchedules")
 const get2 = require("./routes/get/getVans")
@@ -20,6 +21,7 @@ app.use("/", creater2)
 app.use("/", bookroute)
 app.use("/", get1)
 app.use("/", get2)
+app.use("/", api)
 
 const port = process.env.PORT || 3700;
 

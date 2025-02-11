@@ -22,7 +22,7 @@ const BookingSchema = new mongoose.Schema({
         country: { type: String, required: true }
     },
     client: { type: mongoose.SchemaTypes.ObjectId, ref: "Client", required: true },
-    date: { type: Date, required: true }, // Date only (no time)
+    date: { type: Date, required: true }, 
     time: { type: String, required: true }, // Example: "14:30" (2:30 PM)
     breed: { type: String, required: true },
     price: { type: Number },

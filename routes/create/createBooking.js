@@ -50,7 +50,9 @@ router.post("/create-booking", async (req, res) => {
 
     // Step 3: Find or create the schedule
     let schedule = await Schedule.findOne({ van: van_id, date });
-
+    if(schedule.bookings.length >= 3){
+            return res.status(404).send({Message: "Schedule full, try another date", Success: false})
+    }
     if (!schedule) {
       schedule = new Schedule({
         van: van_id,
@@ -58,12 +60,13 @@ router.post("/create-booking", async (req, res) => {
         bookings: [booking._id],
       });
     } else {
+      
       schedule.bookings.push(booking._id);
     }
 
     await schedule.save();
 
-    return res.status(201).json({ message: "Appointment booked successfully", success: true });
+    return res.status(201).json({ Message: "Appointment booked successfully", Success: true });
   } catch (error) {
     console.error("Error creating booking:", error);
     return res.status(500).json({

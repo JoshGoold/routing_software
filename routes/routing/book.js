@@ -14,13 +14,13 @@ router.get("/book", async (req, res)=> {
             const emptySchdeules = await getUpcomingSchedules()
 
             if(emptySchdeules){
-                res.send({
+                return res.send({
                     Message: "We've found some possible booking times",
                     Available: emptySchdeules,
                     Success: true,
                 })
             } else{
-                res.status(404).send({Message: "No available times, please try again another day", Success: false})
+                return res.status(404).send({Message: "No available times, please try again another day", Success: false})
             }
         }
 

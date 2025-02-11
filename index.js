@@ -4,6 +4,9 @@ const mongoose = require("mongoose")
 const creater1 = require("./routes/create/createBooking")
 const creater2 = require("./routes/create/createVan")
 const bookroute = require("./routes/routing/book")
+const get1 = require("./routes/get/getSchedules")
+const get2 = require("./routes/get/getVans")
+
 const createMonthSchedule = require("./utils/database/createSchedules")
 require("dotenv").config()
 
@@ -15,8 +18,10 @@ app.use(express.urlencoded({extended: true}))
 app.use("/", creater1)
 app.use("/", creater2)
 app.use("/", bookroute)
+app.use("/", get1)
+app.use("/", get2)
 
-const port = process.env.PORT || 3500;
+const port = process.env.PORT || 3700;
 
 app.get("/", (req,res)=> {
     res.send("Routing Software ©️")

@@ -20,6 +20,8 @@ function formatTime(minutes) {
     return `${hours}:${mins}:00`;
 }
 
+const APPOINTMENT_DURATION = 120; // 2 hours in minutes
+
 async function findAvailableTimes(schedule) {
     if (schedule.bookings.length === 0) return defaultTimes;
 
@@ -32,21 +34,30 @@ async function findAvailableTimes(schedule) {
 
     const availableTimes = [];
     let lastEnd = parseTime("08:00:00"); // Start of working hours
+    const endOfDay = parseTime("16:00:00"); // End of working hours
 
     for (const slot of takenTimes) {
         if (slot.start > lastEnd) {
-            availableTimes.push({ start: formatTime(lastEnd), end: formatTime(slot.start) });
+            addFixedSlots(availableTimes, lastEnd, slot.start);
         }
         lastEnd = Math.max(lastEnd, slot.end);
     }
 
-    // Check for remaining time after last booking
-    const endOfDay = parseTime("16:00:00");
     if (lastEnd < endOfDay) {
-        availableTimes.push({ start: formatTime(lastEnd), end: formatTime(endOfDay) });
+        addFixedSlots(availableTimes, lastEnd, endOfDay);
     }
 
     return availableTimes;
+}
+
+/**
+ * Splits time slots to ensure they do not exceed max appointment duration
+ */
+function addFixedSlots(availableTimes, start, end) {
+    while (start + APPOINTMENT_DURATION <= end) {
+        availableTimes.push({ start: formatTime(start), end: formatTime(start + APPOINTMENT_DURATION) });
+        start += APPOINTMENT_DURATION; // Move to next 2-hour slot
+    }
 }
 
 module.exports = findAvailableTimes;

@@ -7,26 +7,28 @@ async function getAvailableSlots(longitude, latitude) {
   try {
     const today = new Date().setHours(0, 0, 0, 0);
 
-    // Step 1: Find bookings near the location
+    // Step 1: Find bookings near the location (optimized)
     const bookings = await Booking.find({
       location: {
         $near: {
           $geometry: { type: "Point", coordinates: [Number(longitude), Number(latitude)] },
-          $maxDistance: 20000, // 20 km radius
+          $maxDistance: 30000, // 30 km radius
         },
       },
       date: { $gte: today },
-    }).populate("van");
+    })
+      .populate("van", "_id") // Only fetch van IDs
+      .select("date van");
 
-    // Step 2: If no bookings exist, return empty arrays
-    if (bookings.length === 0) {
+    if (!bookings.length) {
       return { available: [], possible: [] };
     }
 
-    // Step 3: Fetch schedules for the same vans and dates
-    const bookingDates = bookings.map(b => b.date);
-    const vanIds = bookings.map(b => b.van._id);
-    
+    // Step 2: Extract unique van IDs and booking dates
+    const bookingDates = [...new Set(bookings.map((b) => b.date.toISOString()))];
+    const vanIds = [...new Set(bookings.map((b) => b.van._id.toString()))];
+
+    // Step 3: Fetch schedules for these vans and dates
     const schedules = await Schedule.find({
       van: { $in: vanIds },
       date: { $in: bookingDates },
@@ -39,23 +41,24 @@ async function getAvailableSlots(longitude, latitude) {
     for (const schedule of schedules) {
       const availTimes = await findAvailableTimes(schedule);
 
-      // Create an object with available time slots
-      const scheduleWithTimes = {
-        ...schedule.toObject(),
-        availTimes,
-      };
+      if (availTimes.length > 0) {
+        const scheduleWithTimes = {
+          ...schedule.toObject(),
+          availTimes,
+        };
 
-      // Categorize schedules based on the number of bookings
-      if (schedule.bookings.length < 4) {
-        available.push(scheduleWithTimes);
-      } else if (schedule.bookings.length === 4) {
-        possible.push(scheduleWithTimes);
+        // Categorize based on the number of bookings
+        if (schedule.bookings.length < 3) {
+          available.push(scheduleWithTimes);
+        } else if (schedule.bookings.length === 3) {
+          possible.push(scheduleWithTimes);
+        }
       }
     }
 
     return { available, possible };
   } catch (e) {
-    console.error("Error fetching available slots:", e);
+    console.error("Error fetching available slots:", e.message);
     return { available: [], possible: [] };
   }
 }

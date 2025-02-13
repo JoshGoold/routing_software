@@ -14,6 +14,7 @@ router.get("/book", async (req, res)=> {
             const emptySchdeules = await getUpcomingSchedules()
 
             if(emptySchdeules){
+                console.log(emptySchdeules)
                 return res.send({
                     Message: "We've found some possible booking times",
                     Available: emptySchdeules,

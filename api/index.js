@@ -15,6 +15,8 @@ app.get("/get-travel-time", async (req, res) => {
         if (data.status === "OK") {
             const travelTime = data.rows[0].elements[0].duration.text; 
             const distance = data.rows[0].elements[0].distance.text; 
+            console.log(travelTime)
+            console.log(distance)
             return res.send({Success: true, travelTime, distance });
         } else {
             return res.status(400).send({ Message: "Invalid response from Google API", Success: false });

@@ -1,4 +1,3 @@
-
 const Schedule = require("../../models/ScheduleSchema");
 const findAvailableTimes = require("./calculateAvailableBookingTime");
 
@@ -16,14 +15,16 @@ async function getUpcomingSchedules() {
             date: { $gte: today, $lte: twoWeeksLater }
         }).populate("bookings"); // Assuming `bookings` is referenced in your schema
 
-        // Filter out schedules that have bookings
-        const availableSchedules = schedules.filter(schedule => !schedule.bookings || schedule.bookings.length === 0);
+        // Filter out schedules that have bookings, or have exactly 3 bookings
+        const availableSchedules = schedules.filter(schedule => 
+            !schedule.bookings || schedule.bookings.length === 0 || schedule.bookings.length !== 3
+        );
 
         const bookingOptions = [];
 
-        for(let schedule of availableSchedules){
+        for (let schedule of availableSchedules) {
             const availTimes = await findAvailableTimes(schedule);
-            bookingOptions.push({...schedule.toObject(), availTimes})
+            bookingOptions.push({ ...schedule.toObject(), availTimes });
         }
 
         return bookingOptions;
@@ -33,6 +34,5 @@ async function getUpcomingSchedules() {
         return [];
     }
 }
-
 
 module.exports = getUpcomingSchedules;

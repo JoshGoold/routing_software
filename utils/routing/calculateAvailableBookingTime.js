@@ -13,7 +13,7 @@ const APPOINTMENT_DURATION = 120; // 2 hours in minutes
 const START_OF_DAY = "08:00:00";
 const END_OF_DAY = "16:00:00";
 const MAX_TRAVEL_BUFFER = 60; // Max travel time buffer in minutes
-const EXTRA_BUFFER_TIME = 20; // Extra buffer time in minutes between appointments
+const EXTRA_BUFFER_TIME = 30; // Extra buffer time in minutes between appointments
 
 /** Converts HH:MM:SS to minutes */
 const parseTime = (timeStr) => {
@@ -44,26 +44,30 @@ const parseTravelTime = (travelTimeStr) => {
 };
 
 /** Round the time to the nearest 5-minute increment */
-const roundToNearest5 = (minutes) => {
-    return Math.round(minutes / 5) * 5;
-};
+const roundToNearest5 = (minutes) => Math.round(minutes / 5) * 5;
 
 async function findAvailableTimes(schedule, newBookingLocation = "43.8975974,-78.8635999") {
-    if (!schedule.bookings.length) return DEFAULT_TIMES;
+    if (!schedule || !Array.isArray(schedule.bookings)) return DEFAULT_TIMES;
+    if (schedule.bookings.length === 0) return DEFAULT_TIMES;
 
     // Fetch travel times in parallel
     const travelTimes = await Promise.all(
         schedule.bookings.map(async (booking) => {
             try {
+                if (!booking.location || !booking.location.coordinates) {
+                    console.error("❌ Booking has missing coordinates:", booking);
+                    return 0;
+                }
+                
                 const cords1 = `${booking.location.coordinates[1]},${booking.location.coordinates[0]}`;
                 const travelData = await findTimeAndDistance(cords1, newBookingLocation);
                 
                 if (!travelData || typeof travelData.travelTime !== "string") {
                     console.error(`❌ Invalid travel time data:`, travelData);
-                    return 0; // Return 0 if no valid data
+                    return 0;
                 }
 
-                return parseTravelTime(travelData.travelTime); // Use the new parsing function
+                return parseTravelTime(travelData.travelTime);
             } catch (error) {
                 console.error("Error fetching travel time:", error);
                 return 0;
@@ -73,27 +77,21 @@ async function findAvailableTimes(schedule, newBookingLocation = "43.8975974,-78
 
     // Process bookings into blocked time slots
     const takenTimes = schedule.bookings.map((booking, index) => {
-        const completionTime = booking.expectedCompletionTime;
-        if (!completionTime || typeof completionTime !== "string") {
-            console.error(`❌ Invalid completion time for booking:`, booking);
+        if (!booking.time || !booking.expectedCompletionTime) {
+            console.error("❌ Booking missing required time fields:", booking);
+            return null;
         }
-
+        
         const travelBuffer = Math.min(Math.ceil(travelTimes[index] || 0), MAX_TRAVEL_BUFFER);
         const start = parseTime(booking.time);
-        const end = parseTime(completionTime) + travelBuffer;
-
-        // Round start and end to nearest 5 minutes
-        const roundedStart = roundToNearest5(start);
-        const roundedEnd = roundToNearest5(end);
-
-        console.log(`🕒 Booking ${booking._id} | Start: ${roundedStart} | Completion: ${completionTime} (${parseTime(completionTime)}) | Travel Buffer: ${travelBuffer}`);
-        return { start: roundedStart, end: roundedEnd };
-    });
+        const end = parseTime(booking.expectedCompletionTime) + travelBuffer;
+        
+        return { start: roundToNearest5(start), end: roundToNearest5(end) };
+    }).filter(Boolean); // Remove null values
 
     // Sort blocked slots
     takenTimes.sort((a, b) => a.start - b.start);
 
-    // Compute available time slots
     return computeAvailableSlots(takenTimes, parseTime(START_OF_DAY), parseTime(END_OF_DAY));
 }
 
@@ -102,28 +100,23 @@ function computeAvailableSlots(takenTimes, startOfDay, endOfDay) {
     const availableTimes = [];
 
     takenTimes.forEach(({ start, end }) => {
-        // Ensure at least 20 minutes buffer between appointments
-        if (start > lastEnd + EXTRA_BUFFER_TIME) {
-            addFixedSlots(availableTimes, lastEnd + EXTRA_BUFFER_TIME, start);
+        if (lastEnd + APPOINTMENT_DURATION <= start) {
+            availableTimes.push({
+                start: formatTime(lastEnd),
+                end: formatTime(lastEnd + APPOINTMENT_DURATION),
+            });
         }
-        lastEnd = Math.max(lastEnd, end);
+        lastEnd = Math.max(lastEnd, end + EXTRA_BUFFER_TIME);
     });
 
-    if (lastEnd < endOfDay) {
-        addFixedSlots(availableTimes, lastEnd + EXTRA_BUFFER_TIME, endOfDay);
+    if (lastEnd + APPOINTMENT_DURATION <= endOfDay) {
+        availableTimes.push({
+            start: formatTime(lastEnd),
+            end: formatTime(lastEnd + APPOINTMENT_DURATION),
+        });
     }
 
     return availableTimes;
-}
-
-function addFixedSlots(availableTimes, start, end) {
-    while (start + APPOINTMENT_DURATION <= end) {
-        availableTimes.push({
-            start: formatTime(start),
-            end: formatTime(start + APPOINTMENT_DURATION),
-        });
-        start += APPOINTMENT_DURATION;
-    }
 }
 
 module.exports = findAvailableTimes;

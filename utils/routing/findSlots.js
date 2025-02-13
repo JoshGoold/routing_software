@@ -62,7 +62,7 @@ async function getAvailableSlots(longitude, latitude) {
         if (schedule.bookings.length < 3) {
           available.push(scheduleWithTimes);
         } else if (schedule.bookings.length === 3) {
-          possible.push(scheduleWithTimes);
+          available.push(scheduleWithTimes);
         }
       }
     }

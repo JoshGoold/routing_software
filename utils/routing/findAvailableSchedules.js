@@ -15,9 +15,9 @@ async function getUpcomingSchedules() {
             date: { $gte: today, $lte: twoWeeksLater }
         }).populate("bookings"); // Assuming `bookings` is referenced in your schema
 
-        // Filter out schedules that have bookings, or have exactly 3 bookings
+        // Filter out schedules that have bookings (strictly with no bookings)
         const availableSchedules = schedules.filter(schedule => 
-             schedule.bookings.length === 0 
+            Array.isArray(schedule.bookings) && schedule.bookings.length === 0 // Ensure bookings is an array and empty
         );
 
         const bookingOptions = [];

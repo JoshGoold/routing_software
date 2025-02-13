@@ -81,12 +81,23 @@ async function findAvailableTimes(schedule, newBookingLocation = "43.8975974,-78
             return null;
         }
 
-        const travelBuffer = Math.min(Math.ceil(travelTimes[index] || 0), MAX_TRAVEL_BUFFER);
+        // Parse time fields and log them to debug
         const start = parseTime(booking.time);
-        const end = parseTime(booking.expectedCompletionTime) + travelBuffer;
+        const end = parseTime(booking.expectedCompletionTime);
 
-        return { start: roundToNearest5(start), end: roundToNearest5(end) };
+        if (isNaN(start) || isNaN(end)) {
+            console.error(`❌ Invalid time for booking:`, booking);
+            return null;
+        }
+
+        const travelBuffer = Math.min(Math.ceil(travelTimes[index] || 0), MAX_TRAVEL_BUFFER);
+        const adjustedEnd = end + travelBuffer;
+
+        return { start: roundToNearest5(start), end: roundToNearest5(adjustedEnd) };
     }).filter(Boolean); // Remove null values
+
+    // Log the processed blocked times to debug
+    console.log("Taken times:", takenTimes);
 
     // Sort blocked slots
     takenTimes.sort((a, b) => a.start - b.start);

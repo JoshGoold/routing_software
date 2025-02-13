@@ -29,7 +29,7 @@ const formatTime = (minutes) => {
     return `${hours}:${mins}:00`;
 };
 
-/** Parses time like "1 hour 30 mins" into minutes */
+/** Parses travel time like "1 hour 30 mins" into minutes */
 const parseTravelTime = (travelTimeStr) => {
     if (!travelTimeStr || typeof travelTimeStr !== "string") return 0;
     
@@ -47,7 +47,6 @@ const parseTravelTime = (travelTimeStr) => {
 const roundToNearest5 = (minutes) => Math.round(minutes / 5) * 5;
 
 async function findAvailableTimes(schedule, newBookingLocation = "43.8975974,-78.8635999") {
-    if (!schedule || !Array.isArray(schedule.bookings)) return DEFAULT_TIMES;
     if (schedule.bookings.length === 0) return DEFAULT_TIMES;
 
     // Fetch travel times in parallel
@@ -81,11 +80,11 @@ async function findAvailableTimes(schedule, newBookingLocation = "43.8975974,-78
             console.error("❌ Booking missing required time fields:", booking);
             return null;
         }
-        
+
         const travelBuffer = Math.min(Math.ceil(travelTimes[index] || 0), MAX_TRAVEL_BUFFER);
         const start = parseTime(booking.time);
         const end = parseTime(booking.expectedCompletionTime) + travelBuffer;
-        
+
         return { start: roundToNearest5(start), end: roundToNearest5(end) };
     }).filter(Boolean); // Remove null values
 
@@ -119,4 +118,37 @@ function computeAvailableSlots(takenTimes, startOfDay, endOfDay) {
     return availableTimes;
 }
 
-module.exports = findAvailableTimes;
+async function getUpcomingSchedules() {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Start of today
+
+        const twoWeeksLater = new Date();
+        twoWeeksLater.setDate(today.getDate() + 14);
+        twoWeeksLater.setHours(23, 59, 59, 999); // End of the 14th day
+
+        // Fetch schedules and populate their bookings
+        const schedules = await Schedule.find({
+            date: { $gte: today, $lte: twoWeeksLater }
+        }).populate("bookings");
+
+        // Filter out fully booked schedules (3 or more bookings)
+        const availableSchedules = schedules.filter(schedule =>
+            schedule.bookings.length < 3
+        );
+
+        const bookingOptions = [];
+
+        for (let schedule of availableSchedules) {
+            const availTimes = await findAvailableTimes(schedule);
+            bookingOptions.push({ ...schedule.toObject(), availTimes });
+        }
+
+        return bookingOptions;
+    } catch (error) {
+        console.error("Error fetching available schedules:", error);
+        return [];
+    }
+}
+
+module.exports = getUpcomingSchedules;

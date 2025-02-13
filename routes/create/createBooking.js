@@ -50,7 +50,7 @@ router.post("/create-booking", async (req, res) => {
 
     // Step 3: Find or create the schedule
     let schedule = await Schedule.findOne({ van: van_id, date });
-    if(schedule?.bookings.length >= 3){
+    if(schedule?.bookings.length > 3){
             return res.status(404).send({Message: "Schedule full, try another date", Success: false})
     }
     if (!schedule) {

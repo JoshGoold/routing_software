@@ -25,7 +25,7 @@ async function getAvailableSlots(longitude, latitude) {
 
     console.log(`Found ${bookings.length} nearby bookings`);
 
-    if (!bookings.length) {
+    if (bookings.length === 0) {
       return { available: [], possible: [] };
     }
 

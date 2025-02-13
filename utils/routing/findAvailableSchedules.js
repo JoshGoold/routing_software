@@ -17,14 +17,13 @@ async function getUpcomingSchedules() {
 
         // Filter out schedules that have bookings, or have exactly 3 bookings
         const availableSchedules = schedules.filter(schedule => 
-            !schedule.bookings || schedule.bookings.length === 0 || schedule.bookings.length < 3 
+             schedule.bookings.length === 0 
         );
 
         const bookingOptions = [];
 
         for (let schedule of availableSchedules) {
             const availTimes = await findAvailableTimes(schedule);
-            if(schedule.bookings.length >= 3) continue;
             bookingOptions.push({ ...schedule.toObject(), availTimes });
         }
 

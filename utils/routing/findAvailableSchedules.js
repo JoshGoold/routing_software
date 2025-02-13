@@ -24,6 +24,7 @@ async function getUpcomingSchedules() {
 
         for (let schedule of availableSchedules) {
             const availTimes = await findAvailableTimes(schedule);
+            if(schedule.bookings.length >= 3) continue;
             bookingOptions.push({ ...schedule.toObject(), availTimes });
         }
 

@@ -15,7 +15,7 @@ async function getAvailableSlots(longitude, latitude) {
       location: {
         $near: {
           $geometry: { type: "Point", coordinates: [Number(longitude), Number(latitude)] },
-          $maxDistance: 50000, // Increased radius to 50 km for better results
+          $maxDistance: 30000, // Increased radius to 30 km for better results
         },
       },
       date: { $gte: today },

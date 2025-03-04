@@ -32,14 +32,11 @@ const formatTime = (minutes) => {
 /** Parses time like "1 hour 30 mins" into minutes */
 const parseTravelTime = (travelTimeStr) => {
     if (!travelTimeStr || typeof travelTimeStr !== "string") return 0;
-    
     let totalMinutes = 0;
     const hourMatch = travelTimeStr.match(/(\d+)\s*hour/);
     const minuteMatch = travelTimeStr.match(/(\d+)\s*min/);
-
     if (hourMatch) totalMinutes += parseInt(hourMatch[1]) * 60;
     if (minuteMatch) totalMinutes += parseInt(minuteMatch[1]);
-
     return totalMinutes;
 };
 
@@ -47,47 +44,51 @@ const parseTravelTime = (travelTimeStr) => {
 const roundToNearest5 = (minutes) => Math.round(minutes / 5) * 5;
 
 async function findAvailableTimes(schedule, newBookingLocation = "43.8975974,-78.8635999") {
-
     if (schedule.bookings.length === 0) return DEFAULT_TIMES;
 
-    // Fetch travel times in parallel
+    // Fetch travel times in both directions in parallel
     const travelTimes = await Promise.all(
         schedule.bookings.map(async (booking) => {
             try {
                 if (!booking.location || !booking.location.coordinates) {
                     console.error("❌ Booking has missing coordinates:", booking);
-                    return 0;
+                    return { to: 0, from: 0 };
                 }
-                
                 const cords1 = `${booking.location.coordinates[1]},${booking.location.coordinates[0]}`;
-                const travelData = await findTimeAndDistance(cords1, newBookingLocation);
-                
-                if (!travelData || typeof travelData.travelTime !== "string") {
-                    console.error(`❌ Invalid travel time data:`, travelData);
-                    return 0;
-                }
 
-                return parseTravelTime(travelData.travelTime);
+                // Travel from new location to existing booking (pre-travel)
+                const toTravelData = await findTimeAndDistance(newBookingLocation, cords1);
+                // Travel from existing booking to new location (post-travel)
+                const fromTravelData = await findTimeAndDistance(cords1, newBookingLocation);
+
+                return {
+                    to: parseTravelTime(toTravelData?.travelTime || "0 min"),
+                    from: parseTravelTime(fromTravelData?.travelTime || "0 min"),
+                };
             } catch (error) {
                 console.error("Error fetching travel time:", error);
-                return 0;
+                return { to: 0, from: 0 };
             }
         })
     );
 
-    // Process bookings into blocked time slots
+    // Process bookings into blocked time slots with pre- and post-travel buffers
     const takenTimes = schedule.bookings.map((booking, index) => {
         if (!booking.time || !booking.expectedCompletionTime) {
             console.error("❌ Booking missing required time fields:", booking);
             return null;
         }
-        
-        const travelBuffer = Math.min(Math.ceil(travelTimes[index] || 0), MAX_TRAVEL_BUFFER);
+
         const start = parseTime(booking.time);
-        const end = parseTime(booking.expectedCompletionTime) + travelBuffer;
-        
-        return { start: roundToNearest5(start), end: roundToNearest5(end) };
-    }).filter(Boolean); // Remove null values
+        const end = parseTime(booking.expectedCompletionTime);
+        const preTravelBuffer = Math.min(Math.ceil(travelTimes[index].to || 0), MAX_TRAVEL_BUFFER);
+        const postTravelBuffer = Math.min(Math.ceil(travelTimes[index].from || 0), MAX_TRAVEL_BUFFER);
+
+        return {
+            start: roundToNearest5(start - preTravelBuffer), // Block time before for travel to booking
+            end: roundToNearest5(end + postTravelBuffer),    // Block time after for travel from booking
+        };
+    }).filter(Boolean);
 
     // Sort blocked slots
     takenTimes.sort((a, b) => a.start - b.start);

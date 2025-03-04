@@ -3,76 +3,109 @@ const Booking = require("../../models/BookingSchema");
 const Schedule = require("../../models/ScheduleSchema");
 const findAvailableTimes = require("./calculateAvailableBookingTime");
 
-async function getAvailableSlots(longitude, latitude) {
+// Configurable constants
+const MAX_DISTANCE = 30000; // 30 km radius
+const MAX_BOOKINGS_AVAILABLE = 3; // Threshold for "available" vs "possible"
+
+/**
+ * Get available time slots near a location based on vans with nearby bookings.
+ * @param {number} longitude - Longitude of the target location
+ * @param {number} latitude - Latitude of the target location
+ * @param {Object} [options] - Optional configuration
+ * @param {number} [options.maxDistance] - Max distance in meters (default: 30000)
+ * @returns {Promise<{ available: Array, possible: Array }>}
+ */
+async function getAvailableSlots(longitude, latitude, { maxDistance = MAX_DISTANCE } = {}) {
   try {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time for accurate date filtering
+    today.setHours(0, 0, 0, 0);
 
-    console.log(`Searching for bookings near: [${longitude}, ${latitude}] from today: ${today}`);
+    console.log(`Searching slots near [${longitude}, ${latitude}] from ${today}, maxDistance: ${maxDistance}m`);
 
-    // Step 1: Find bookings near the location (optimized)
-    const bookings = await Booking.find({
+    // Step 1: Find nearby bookings
+    const nearbyBookings = await Booking.find({
       location: {
         $near: {
           $geometry: { type: "Point", coordinates: [Number(longitude), Number(latitude)] },
-          $maxDistance: 30000, // Increased radius to 30 km for better results
+          $maxDistance: maxDistance,
         },
       },
       date: { $gte: today },
     })
-      .populate("van", "_id") // Fetch only van IDs
-      .select("date van");
+      .populate("van", "_id")
+      .select("date van")
+      .lean(); // Faster query with plain objects
 
-    console.log(`Found ${bookings.length} nearby bookings`);
+    console.log(`Found ${nearbyBookings.length} nearby bookings`);
 
-    if (bookings.length === 0) {
+    if (nearbyBookings.length === 0) {
       return { available: [], possible: [] };
     }
 
-    // Step 2: Extract unique van IDs and formatted booking dates
-    const bookingDates = [...new Set(bookings.map((b) => b.date.toISOString().split("T")[0]))];
-    const vanIds = [...new Set(bookings.map((b) => b.van._id.toString()))];
+    // Step 2: Extract unique van IDs and dates
+    const vanIds = [...new Set(nearbyBookings.map(b => b.van._id.toString()))];
+    const bookingDates = [...new Set(nearbyBookings.map(b => b.date.toISOString().split("T")[0]))];
 
-    console.log(`Extracted ${vanIds.length} unique vans and ${bookingDates.length} booking dates`);
+    console.log(`Extracted ${vanIds.length} vans and ${bookingDates.length} dates`);
 
     // Step 3: Fetch schedules for these vans and dates
     const schedules = await Schedule.find({
       van: { $in: vanIds },
-      date: { $in: bookingDates }, // Ensure date format matches MongoDB storage
-    }).populate("bookings");
+      date: { $in: bookingDates },
+    })
+      .populate("bookings")
+      .lean();
 
-    console.log(`Found ${schedules.length} schedules for matching vans and dates`);
+    console.log(`Found ${schedules.length} schedules`);
 
-    let available = [];
-    let possible = [];
-
-    // Step 4: Process schedules and find available time slots
-    for (const schedule of schedules) {
+    // Step 4: Compute available times in parallel
+    const schedulePromises = schedules.map(async (schedule) => {
       const availTimes = await findAvailableTimes(schedule, `${latitude},${longitude}`);
+      if (availTimes.length === 0) return null;
 
-      console.log(`Schedule ${schedule._id} has ${availTimes.length} available times`);
+      return {
+        scheduleId: schedule._id,
+        date: schedule.date,
+        van: schedule.van,
+        availTimes,
+        bookingCount: schedule.bookings.length,
+      };
+    });
 
-      if (availTimes.length > 0) {
-        const scheduleWithTimes = {
-          ...schedule.toObject(),
-          availTimes,
-        };
+    const results = (await Promise.all(schedulePromises)).filter(Boolean);
 
-        // Categorize based on the number of bookings
-        if (schedule.bookings.length < 3) {
-          available.push(scheduleWithTimes);
-        } else if (schedule.bookings.length === 3) {
-          available.push(scheduleWithTimes);
-        }
+    // Step 5: Categorize and sort
+    const available = [];
+    const possible = [];
+
+    results.forEach((result) => {
+      const slot = {
+        scheduleId: result.scheduleId,
+        date: result.date,
+        van: result.van,
+        availableTimes: result.availTimes, // Renamed for clarity
+      };
+
+      if (result.bookingCount <= MAX_BOOKINGS_AVAILABLE) {
+        available.push(slot);
+      } else {
+        possible.push(slot);
       }
-    }
+    });
 
-    console.log(`Returning ${available.length} available and ${possible.length} possible schedules`);
+    // Sort by date and first available time
+    const sortSlots = (a, b) => (
+      a.date - b.date || a.availableTimes[0].start.localeCompare(b.availableTimes[0].start)
+    );
+    available.sort(sortSlots);
+    possible.sort(sortSlots);
+
+    console.log(`Returning ${available.length} available and ${possible.length} possible slots`);
 
     return { available, possible };
-  } catch (e) {
-    console.error("Error fetching available slots:", e);
-    return { available: [], possible: [] };
+  } catch (error) {
+    console.error("Error in getAvailableSlots:", error.message, error.stack);
+    throw new Error("Failed to fetch available slots"); // Rethrow for upstream handling
   }
 }
 

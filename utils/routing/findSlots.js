@@ -3,75 +3,96 @@ const Booking = require("../../models/BookingSchema");
 const Schedule = require("../../models/ScheduleSchema");
 const findAvailableTimes = require("./calculateAvailableBookingTime");
 
+const DAYS_AHEAD = 7; // Configurable: look ahead 7 days
+const MAX_DISTANCE = 30000; // 30 km radius
+
 async function getAvailableSlots(longitude, latitude) {
   try {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time for accurate date filtering
+    today.setHours(0, 0, 0, 0);
 
-    console.log(`Searching for bookings near: [${longitude}, ${latitude}] from today: ${today}`);
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() + DAYS_AHEAD);
+    endDate.setHours(23, 59, 59, 999);
 
-    // Step 1: Find bookings near the location (optimized)
-    const bookings = await Booking.find({
+    console.log(`Searching slots near [${longitude}, ${latitude}] from ${today} to ${endDate}`);
+
+    // Step 1: Fetch all vans
+    const allVans = await Van.find().select("_id");
+    const allVanIds = allVans.map(van => van._id.toString());
+
+    // Step 2: Find nearby bookings for prioritization
+    const nearbyBookings = await Booking.find({
       location: {
         $near: {
           $geometry: { type: "Point", coordinates: [Number(longitude), Number(latitude)] },
-          $maxDistance: 30000, // Increased radius to 30 km for better results
+          $maxDistance: MAX_DISTANCE,
         },
       },
-      date: { $gte: today },
+      date: { $gte: today, $lte: endDate },
     })
-      .populate("van", "_id") // Fetch only van IDs
-      .select("date van");
+      .populate("van", "_id")
+      .select("date van location");
 
-    console.log(`Found ${bookings.length} nearby bookings`);
+    console.log(`Found ${nearbyBookings.length} nearby bookings`);
 
-    if (bookings.length === 0) {
+    // Step 3: Fetch all schedules for the date range
+    const schedules = await Schedule.find({
+      date: { $gte: today, $lte: endDate },
+      van: { $in: allVanIds },
+    }).populate("bookings").lean();
+
+    console.log(`Found ${schedules.length} schedules`);
+
+    if (schedules.length === 0) {
       return { available: [], possible: [] };
     }
 
-    // Step 2: Extract unique van IDs and formatted booking dates
-    const bookingDates = [...new Set(bookings.map((b) => b.date.toISOString().split("T")[0]))];
-    const vanIds = [...new Set(bookings.map((b) => b.van._id.toString()))];
+    // Step 4: Process schedules and compute available times
+    const available = [];
+    const possible = [];
+    const nearbyVanIds = new Set(nearbyBookings.map(b => b.van._id.toString()));
 
-    console.log(`Extracted ${vanIds.length} unique vans and ${bookingDates.length} booking dates`);
-
-    // Step 3: Fetch schedules for these vans and dates
-    const schedules = await Schedule.find({
-      van: { $in: vanIds },
-      date: { $in: bookingDates }, // Ensure date format matches MongoDB storage
-    }).populate("bookings");
-
-    console.log(`Found ${schedules.length} schedules for matching vans and dates`);
-
-    let available = [];
-    let possible = [];
-
-    // Step 4: Process schedules and find available time slots
-    for (const schedule of schedules) {
+    const schedulePromises = schedules.map(async (schedule) => {
       const availTimes = await findAvailableTimes(schedule, `${latitude},${longitude}`);
+      if (availTimes.length === 0) return null;
 
-      console.log(`Schedule ${schedule._id} has ${availTimes.length} available times`);
+      const isNear = nearbyVanIds.has(schedule.van.toString());
+      return {
+        ...schedule,
+        availTimes,
+        isNear, // Flag for prioritization
+        bookingCount: schedule.bookings.length,
+      };
+    });
 
-      if (availTimes.length > 0) {
-        const scheduleWithTimes = {
-          ...schedule.toObject(),
-          availTimes,
-        };
+    const results = (await Promise.all(schedulePromises)).filter(Boolean);
 
-        // Categorize based on the number of bookings
-        if (schedule.bookings.length < 3) {
-          available.push(scheduleWithTimes);
-        } else if (schedule.bookings.length === 3) {
-          available.push(scheduleWithTimes);
-        }
+    // Step 5: Categorize and sort
+    results.forEach((result) => {
+      const slot = {
+        scheduleId: result._id,
+        date: result.date,
+        van: result.van,
+        availTimes: result.availTimes,
+      };
+
+      if (result.isNear && result.bookingCount < 4) {
+        available.push(slot); // Prioritize nearby vans with fewer bookings
+      } else {
+        possible.push(slot); // Other options
       }
-    }
+    });
 
-    console.log(`Returning ${available.length} available and ${possible.length} possible schedules`);
+    // Sort available by date and time for consistency
+    available.sort((a, b) => a.date - b.date || a.availTimes[0].start.localeCompare(b.availTimes[0].start));
+    possible.sort((a, b) => a.date - b.date || a.availTimes[0].start.localeCompare(b.availTimes[0].start));
+
+    console.log(`Returning ${available.length} available and ${possible.length} possible slots`);
 
     return { available, possible };
   } catch (e) {
-    console.error("Error fetching available slots:", e);
+    console.error("Error fetching available slots:", e.message, e.stack);
     return { available: [], possible: [] };
   }
 }

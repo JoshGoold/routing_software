@@ -12,7 +12,7 @@ const DEFAULT_TIMES = [
 const APPOINTMENT_DURATION = 120; // 2 hours in minutes
 const START_OF_DAY = "08:00:00";
 const END_OF_DAY = "16:00:00";
-const MAX_TRAVEL_BUFFER = 60; // Max travel time buffer in minutes
+const MAX_TRAVEL_BUFFER = 120; // Max travel time buffer in minutes
 const EXTRA_BUFFER_TIME = 30; // Extra buffer time in minutes between appointments
 
 /** Converts HH:MM:SS to minutes */

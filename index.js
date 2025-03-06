@@ -15,24 +15,7 @@ require("dotenv").config()
 const app = express()
 
 app.use(express.json())
-// CORS configuration
-const corsOptions = {
-  origin: (origin, callback) => {
-  const allowedOrigins = ["https://routing-front-end.vercel.app", "http://localhost:3000"];
-  console.log("Request Origin:", origin); // Debug
-  if (!origin || allowedOrigins.includes(origin)) {
-  callback(null, true);
-  } else {
-  callback(new Error("Not allowed by CORS"));
-  }
-  },
-  methods: ["GET", "POST", "OPTIONS"], // Include OPTIONS explicitly
-  allowedHeaders: ["Content-Type", "Authorization"],
- };
- app.use(cors(corsOptions));
- 
- // Handle OPTIONS preflight manually if needed
- app.options("*", cors(corsOptions));
+app.use(cors({origin: ["https://routing-front-end.vercel.app","http://localhost:3000" ]}))
 app.use(express.urlencoded({extended: true}))
 app.use("/", creater1)
 app.use("/", creater2)

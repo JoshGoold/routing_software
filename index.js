@@ -7,6 +7,7 @@ const api = require("./api/index")
 const bookroute = require("./routes/routing/book")
 const get1 = require("./routes/get/getSchedules")
 const get2 = require("./routes/get/getVans")
+const get3 = require("./routes/routing/new_book")
 
 const createMonthSchedule = require("./utils/database/createSchedules")
 require("dotenv").config()
@@ -22,6 +23,7 @@ app.use("/", bookroute)
 app.use("/", get1)
 app.use("/", get2)
 app.use("/", api)
+app.use("/", get3)
 
 const port = process.env.PORT || 3700;
 

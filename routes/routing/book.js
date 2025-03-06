@@ -1,6 +1,7 @@
 const express = require("express")
 const findSlots = require("../../utils/routing/findSlots");
 const getUpcomingSchedules = require("../../utils/routing/findAvailableSchedules");
+const getGrokCheck = require("../../api/grokCheck")
 
 const router = express.Router()
 
@@ -28,10 +29,21 @@ router.get("/book", async (req, res)=> {
         // If there are available or possible slots, send a success response
         console.log(available);
         console.log(possible);
+        const confirmedAvailable = await getGrokCheck(long, lat, available);
+        let fillSchedules = [];
+        if (confirmedAvailable.available.length > 0) {
+            const baseDate = confirmedAvailable.available[0].date.split("T")[0]; // "2025-03-12"
+            const startDate = new Date(baseDate);
+            startDate.setDate(startDate.getDate() + 2); // Move to next day, e.g., "2025-03-13"
+            fillSchedules = await getUpcomingSchedules();
+        }
+
+        // Combine confirmedAvailable and fillSchedules
+        const allAvailable = [...confirmedAvailable.available, ...fillSchedules];
 
         return res.send({
             Message: "We've found some possible booking times",
-            Available: available,
+            Available: allAvailable,
             Possible: possible,
             Success: true,
         });

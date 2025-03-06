@@ -1,4 +1,4 @@
-const apiKey = process.env.GROK_API_KEY || "xai-lKE4BFJTN25OkLMIZ1Z7EN5Qm3mcVoDi5hLKheulxOwAOaNEzu7vWEuODrurWI06NJhBEmEhVnz2ldcS";
+const apiKey = process.env.GROK_API_KEY;
 const url = "https://api.x.ai/v1/chat/completions";
 const axios = require("axios");
 

@@ -1,7 +1,7 @@
 async function findTimeAndDistance(origin, destination) {
     try {
       const response = await fetch(
-        `http://localhost:3700/get-travel-time?origin=${origin}&destination=${destination}`,
+        `https://routing-software.vercel.app/get-travel-time?origin=${origin}&destination=${destination}`,
         { method: "GET", headers: { "Content-Type": "application/json" } }
       );
       const data = await response.json();

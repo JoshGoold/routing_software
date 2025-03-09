@@ -1,3 +1,8 @@
+const axios = require("axios");
+require("dotenv").config()
+const apiKey = process.env.GROK_API_KEY;
+const url = "https://api.x.ai/v1/chat/completions";
+
 async function getGrokCheck(long, lat, available) {
     const response = await axios.post(
         url,

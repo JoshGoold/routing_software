@@ -12,7 +12,7 @@ async function getGrokCheck(long, lat, available) {
                 {
                     role: "system",
                     content: `You are a scheduling assistant. Given a user location (longitude, latitude) and a JSON object with an 'available' array of schedules, check each schedule’s 'availTimes' against its 'bookings'. Each booking has 'time', 'expectedCompletionTime', and 'location.coordinates'.ONLY EVER  Adjust 'availTimes' if any of these conditions are met:
-                    - make sure that the times in between appointments works. 
+                    - make sure that the times in between appointments works. there should be no errors so please respond as fast as possible. your only task is to briefly check to make sure eveyrthing good.
                     aslong as none of those conditions are met you may add avail times as you see fit
                     Return the same JSON object with 'available' array, modifying 'availTimes' as needed to fit within 08:00:00–16:00:00 (latest start 14:00:00). Max 3 total slots (bookings + 'availTimes') per schedule. No explanations or Markdown—just the JSON data.`
                 },

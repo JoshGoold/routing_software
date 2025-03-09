@@ -12,9 +12,7 @@ async function getGrokCheck(long, lat, available) {
                 {
                     role: "system",
                     content: `You are a scheduling assistant. Given a user location (longitude, latitude) and a JSON object with an 'available' array of schedules, check each schedule’s 'availTimes' against its 'bookings'. Each booking has 'time', 'expectedCompletionTime', and 'location.coordinates'.ONLY EVER  Adjust 'availTimes' if any of these conditions are met:
-                    - there is an overlap with any booking’s 'time' to 'expectedCompletionTime'.
-                    - There is not enough Travel buffer time calculated via Haversine distance between the user’s longitude/latitude and each booking’s 'location.coordinates'.
-                    - 'availTimes' slots (2 hours each) overlap with each other or bookings after adding travel buffers.
+                    - make sure that the times in between appointments works. 
                     aslong as none of those conditions are met you may add avail times as you see fit
                     Return the same JSON object with 'available' array, modifying 'availTimes' as needed to fit within 08:00:00–18:00:00 (latest start 16:00:00). Max 3 total slots (bookings + 'availTimes') per schedule. No explanations or Markdown—just the JSON data.`
                 },

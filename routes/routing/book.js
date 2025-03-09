@@ -36,7 +36,7 @@ router.get("/book", async (req, res)=> {
             //const startDate = new Date(baseDate);
             //startDate.setDate(startDate.getDate() + 2); // Move to next day, e.g., "2025-03-13"
             //fillSchedules = await getUpcomingSchedules();
-        }
+        //}
         const fillSchedules = await getUpcomingSchedules();
         // Combine confirmedAvailable and fillSchedules
         const allAvailable = [...available, ...fillSchedules];

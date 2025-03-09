@@ -29,7 +29,7 @@ router.get("/book", async (req, res)=> {
         // If there are available or possible slots, send a success response
         console.log(available);
         console.log(possible);
-        //const confirmedAvailable = await getGrokCheck(long, lat, available);
+        const confirmedAvailable = await getGrokCheck(long, lat, available);
         let fillSchedules = [];
         if (confirmedAvailable.available.length > 0) {
             const baseDate = confirmedAvailable.available[0].date.split("T")[0]; // "2025-03-12"

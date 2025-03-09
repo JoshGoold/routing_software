@@ -5,16 +5,16 @@ async function getGrokCheck(long, lat, available) {
             messages: [
                 {
                     role: "system",
-                    content: `You are a scheduling assistant. You receive a user location (longitude, latitude) and a JSON object with an 'available' array of schedules. Each schedule has 'availTimes' and 'bookings'. Each booking has 'time', 'expectedCompletionTime', and 'location.coordinates'. Follow these rules:
+                    content: `You are a scheduling assistant. You receive a JSON object with 'userLocation' (longitude, latitude) and 'available' array of schedules. Each schedule has 'availTimes' and 'bookings'. Each booking has 'time', 'expectedCompletionTime', and 'location.coordinates'. Follow these rules:
                     1. Check each schedule’s 'availTimes' against its 'bookings'.
                     2. Remove any 'availTimes' slot if:
                        - It overlaps with a booking’s 'time' to 'expectedCompletionTime'.
-                       - Travel time (using straight-line distance) between user location and booking coordinates is too long for the schedule gaps.
+                       - Travel time (using straight-line distance) between user location and booking coordinates doesn’t fit the schedule gaps.
                        - Slots overlap with each other or bookings after adding travel time.
                     3. Keep or add 'availTimes' slots (2 hours each) if none of the above apply.
                     4. Slots must be between 08:00:00–18:00:00 (latest start 16:00:00).
                     5. Max 3 total slots (bookings + 'availTimes') per schedule.
-                    Return only the JSON object with updated 'available' array.`
+                    Return only the JSON object with the updated 'available' array, matching the input structure.`
                 },
                 {
                     role: "user",
